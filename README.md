@@ -13,7 +13,7 @@ committed as `art/entry.png`. `main.py` walks every PNG chunk, checks each CRC a
 
 - `art/clay.py`: helpers for a clay-miniature look in Blender (rounded boxes, tubes, filled shapes,
   lights, depth-of-field camera, Cycles render).
-- `art/scene4.py`: the scene in `art/entry.png` (a tea party); `art/scene2.py` and `art/scene3.py`: earlier scenes, built from primitives and rendered headless.
+- `art/scene5.py`: the scene in `art/entry.png` (bath time for the sun); `art/scene2.py` to `art/scene4.py`: earlier scenes, built from primitives and rendered headless.
 - `art/scene.py`: an earlier scene (a robot holding out a daisy).
 - `art/post.py`: the final grade (a little saturation and warmth, a soft vignette) with Pillow.
 - `art/gen2d.py`: the first, flat 2D version.
