@@ -51,6 +51,16 @@ LETTER_V5 = [
     ("Love, June (6) and Ollie (4)", 1),
     ("P.S. Ollie drew the dog. It's yours now.", 1),
 ]
+LETTER_V6 = [
+    ("DEAR JUDGE,", 0),
+    ("You look at happy pictures all day,", 1),
+    ("but nobody ever draws one of you.", 0),
+    ("So here you are, with us,", 1),
+    ("on your day off.", 0),
+    ("Nobody needs anything from you today.", 1),
+    ("Love, June (6) and Ollie (4)", 1),
+    ("P.S. Ollie drew the dog. It's yours now.", 1),
+]
 LETTER = LETTER_V1
 
 
@@ -328,7 +338,7 @@ def kid(cr, x, y, r, hair, shirt, dress=False, pigtails=False):
     return (x - r * 0.65, top + r * 0.35), (x + r * 0.65, top + r * 0.35)
 
 
-def drawing_v5(cr):
+def drawing_v5(cr, sun_at=(905, 118), sun_r=62):
     """The judge on its day off, not alone: June hands it an ice cream, Ollie
     hugs the dog. Laid out at full size under the letter."""
     sea = cr.mask()
@@ -459,15 +469,17 @@ def drawing_v5(cr):
     cr.lay(heart, (235, 60, 90), 0.95)
 
     # corner sun
-    sx, sy = 905, 118
+    sx, sy = sun_at
+    k_ = sun_r / 62.0
     sun = cr.mask()
-    cr.hatch(sun, ellipse_pts(sx, sy, 62, 62, 40, 0.05), spacing=5, width=5)
+    cr.hatch(sun, ellipse_pts(sx, sy, sun_r, sun_r, 40, 0.05), spacing=5, width=5)
     cr.lay(sun, (255, 205, 40), 0.95)
     rays = cr.mask()
     for k in range(12):
         a = k * math.pi / 6 + 0.2
-        cr.stroke(rays, [(sx + 78 * math.cos(a), sy + 78 * math.sin(a)), (sx + 112 * math.cos(a), sy + 112 * math.sin(a))], 6)
-    cr.stroke(rays, ellipse_pts(sx, sy, 62, 62, 40, 0.05), 4)
+        cr.stroke(rays, [(sx + 78 * k_ * math.cos(a), sy + 78 * k_ * math.sin(a)),
+                         (sx + 112 * k_ * math.cos(a), sy + 112 * k_ * math.sin(a))], 6)
+    cr.stroke(rays, ellipse_pts(sx, sy, sun_r, sun_r, 40, 0.05), 4)
     cr.lay(rays, (245, 150, 30))
     sf = cr.mask()
     cr.stroke(sf, [(sx - 24, sy - 8), (sx - 18, sy - 16), (sx - 12, sy - 8)], 4)
@@ -481,6 +493,42 @@ def drawing_v5(cr):
     cr.stroke(lab, [(hx + 102, hy - 76), (hx + 122, hy - 70)], 4)
     cr.lay(lab, (230, 90, 40))
     return (hx, hy)
+
+
+def coupon(img):
+    """A homemade coupon clipped to the card's corner: one day off."""
+    cw, ch = 236, 200
+    layer = Image.new("RGBA", (cw + 40, ch + 40), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    # paper with a little shadow, a dashed cut line and wobbly crayon border
+    sh = Image.new("RGBA", layer.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).rectangle((26, 28, 26 + cw, 28 + ch), fill=(90, 60, 30, 70))
+    layer = Image.alpha_composite(layer, sh.filter(ImageFilter.GaussianBlur(6)))
+    d = ImageDraw.Draw(layer)
+    d.rectangle((20, 20, 20 + cw, 20 + ch), fill=(255, 236, 240, 255))
+    for i in range(0, cw, 16):
+        d.line((20 + i, 32, 28 + i, 32), fill=(230, 90, 120, 255), width=3)
+        d.line((20 + i, 8 + ch, 28 + i, 8 + ch), fill=(230, 90, 120, 255), width=3)
+    for j in range(0, ch - 30, 16):
+        d.line((32, 34 + j, 32, 42 + j), fill=(230, 90, 120, 255), width=3)
+        d.line((8 + cw, 34 + j, 8 + cw, 42 + j), fill=(230, 90, 120, 255), width=3)
+    fh = ImageFont.truetype(FONT_HAND, 20)
+    fb = ImageFont.truetype(FONT_HAND, 33)
+    for txt, y, f, col in (("COUPON", 42, fh, (200, 60, 90)), ("1 DAY OFF", 70, fb, (40, 90, 190)),
+                           ("for: the judge", 128, fh, (60, 45, 40)), ("no picking allowed!", 160, fh, (200, 60, 90))):
+        tw = d.textlength(txt, font=f)
+        d.text((20 + (cw - tw) / 2, y), txt, font=f, fill=col)
+    layer = layer.rotate(-7, resample=Image.BICUBIC, expand=True)
+    img = img.convert("RGBA")
+    img.alpha_composite(layer, (W - layer.width - 14, 18))
+    # a paper clip holding it on
+    clip = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    cd = ImageDraw.Draw(clip)
+    x0, y0 = W - 262, 10
+    cd.rounded_rectangle((x0, y0, x0 + 34, y0 + 92), 17, outline=(120, 125, 135, 255), width=6)
+    cd.rounded_rectangle((x0 + 9, y0 + 14, x0 + 25, y0 + 70), 8, outline=(150, 155, 165, 255), width=5)
+    img.alpha_composite(clip)
+    return img.convert("RGB")
 
 
 def labels_v5(img, judge_at):
@@ -498,14 +546,15 @@ def labels_v5(img, judge_at):
 def text_layer(canvas, judge_at):
     img = Image.fromarray(canvas.astype(np.uint8))
     d = ImageDraw.Draw(img)
-    f = ImageFont.truetype(FONT_TYPE, 37)
-    fb = ImageFont.truetype(FONT_TYPE, 44)
+    tight = LETTER is LETTER_V6
+    f = ImageFont.truetype(FONT_TYPE, 35 if tight else 37)
+    fb = ImageFont.truetype(FONT_TYPE, 42 if tight else 44)
     y = 52
     for i, (line, gap) in enumerate(LETTER):
         y += gap * (16 if len(LETTER) < 9 else 12)
         font = fb if i == 0 else f
         d.text((62, y), line, font=font, fill=INK)
-        y += (47 if len(LETTER) < 9 else 44) if i else 58
+        y += (42 if tight else (47 if len(LETTER) < 9 else 44)) if i else 54
     if judge_at is None:
         return img
     # crayon-written labels
@@ -521,10 +570,17 @@ def main(out, variant="v1"):
     LETTER = {"v3": LETTER_V3, "v4": LETTER_V4, "v5": LETTER_V5}.get(variant, LETTER_V1)
     canvas = paper()
     cr = Crayon()
-    if variant == "v5":
-        judge_at = drawing_v5(cr)
+    if variant in ("v5", "v6"):
+        if variant == "v6":
+            LETTER = LETTER_V6
+            judge_at = drawing_v5(cr, sun_at=(905, 570), sun_r=44)
+        else:
+            judge_at = drawing_v5(cr)
         img = text_layer(cr.apply(canvas), None)
-        labels_v5(img, judge_at).save(out, optimize=True)
+        img = labels_v5(img, judge_at)
+        if variant == "v6":
+            img = coupon(img)
+        img.save(out, optimize=True)
         return
     judge_at = drawing(cr)
     drawn = cr.apply(canvas.copy())

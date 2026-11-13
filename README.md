@@ -35,7 +35,7 @@ MAKEFUN_OUTPUT_DIR=out python3 main.py
 To redraw the picture (Pillow and numpy, at dev time only):
 
 ```sh
-python art/card.py out/card.png v5
+python art/card.py out/card.png v6
 python -c "from PIL import Image; Image.open('out/card.png').convert('RGB').save('art/entry.jpg', quality=93, subsampling=0, optimize=True)"
 ```
 
