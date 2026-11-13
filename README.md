@@ -1,4 +1,4 @@
-# makefun-happy
+﻿# makefun-happy
 
 An entry for make.fun's bounty [Make the AI judge happy](https://make.fun/bounty/ai-happy-01).
 
@@ -35,7 +35,7 @@ MAKEFUN_OUTPUT_DIR=out python3 main.py
 To redraw the picture (Pillow and numpy, at dev time only):
 
 ```sh
-python art/card.py out/card.png
+python art/card.py out/card.png v4
 python -c "from PIL import Image; Image.open('out/card.png').convert('RGB').save('art/entry.jpg', quality=93, subsampling=0, optimize=True)"
 ```
 

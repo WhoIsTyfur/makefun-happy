@@ -20,7 +20,7 @@ FONT_TYPE = "C:/Windows/Fonts/segoeuib.ttf"
 FONT_HAND = "C:/Windows/Fonts/segoeprb.ttf"
 INK = (52, 42, 36)
 
-LETTER = [
+LETTER_V1 = [
     ("DEAR JUDGE,", 0),
     ("We heard you look at happy pictures all day,", 1),
     ("but nobody ever draws one of you.", 0),
@@ -30,6 +30,18 @@ LETTER = [
     ("Love, June (6) and Ollie (4)", 1),
     ("P.S. Ollie drew the dog. The dog is yours now.", 1),
 ]
+LETTER_V3 = LETTER_V1[:6] + [("(You don't even have to pick this one.)", 0)] + LETTER_V1[6:]
+LETTER_V4 = [
+    ("DEAR JUDGE,", 0),
+    ("You look at happy pictures all day,", 1),
+    ("but nobody ever draws one of you.", 0),
+    ("So here you are, on your day off.", 1),
+    ("Nobody needs anything from you today.", 0),
+    ("(You don't even have to pick this one.)", 0),
+    ("Love, June (6) and Ollie (4)", 1),
+    ("P.S. Ollie drew the dog. It's yours now.", 1),
+]
+LETTER = LETTER_V1
 
 
 # ------------------------------------------------------------------ paper
@@ -223,9 +235,13 @@ def drawing(cr):
     cr.stroke(dline, [(dx - 92, dy - 10), (dx - 135, dy - 60), (dx - 128, dy - 75)], 6, wobble=2.5)  # wagging tail
     for k in range(3):  # wag lines
         cr.stroke(dline, [(dx - 160 - k * 4, dy - 85 + k * 22), (dx - 178 - k * 4, dy - 92 + k * 22)], 3)
-    cr.stroke(dline, [(dx + 120, dy - 108), (dx + 132, dy - 140), (dx + 142, dy - 104)], 5)  # ears
-    cr.stroke(dline, [(dx + 70, dy - 104), (dx + 66, dy - 138), (dx + 88, dy - 100)], 5)
     cr.lay(dline, (70, 45, 30))
+    ears = cr.mask()  # floppy ears hanging down both sides of the head
+    for ex, tilt in ((dx + 42, -0.35), (dx + 150, 0.35)):
+        e = ellipse_pts(ex, dy - 58, 12, 27, 28, 0.1, start=tilt)
+        cr.hatch(ears, e, spacing=3, width=4)
+        cr.stroke(ears, e, 4)
+    cr.lay(ears, (90, 55, 30), 0.95)
     face = cr.mask()
     cr.stroke(face, ellipse_pts(dx + 82, dy - 66, 6, 6, 12), 6)
     cr.stroke(face, ellipse_pts(dx + 112, dy - 66, 6, 6, 12), 6)
@@ -238,7 +254,7 @@ def drawing(cr):
     hpts = []
     for i in range(41):
         t = i / 40 * 2 * math.pi
-        hpts.append((dx + 170 + 16 * math.sin(t) ** 3 * 1.7,
+        hpts.append((dx + 150 + 16 * math.sin(t) ** 3 * 1.7,
                      dy - 130 - (13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)) * 1.7))
     cr.hatch(heart, hpts, spacing=4, width=4)
     cr.lay(heart, (235, 60, 90), 0.95)
@@ -269,26 +285,42 @@ def text_layer(canvas, judge_at):
     fb = ImageFont.truetype(FONT_TYPE, 44)
     y = 52
     for i, (line, gap) in enumerate(LETTER):
-        y += gap * 16
+        y += gap * (16 if len(LETTER) < 9 else 12)
         font = fb if i == 0 else f
         d.text((62, y), line, font=font, fill=INK)
-        y += 47 if i else 58
+        y += (47 if len(LETTER) < 9 else 44) if i else 58
     # crayon-written labels
     fh = ImageFont.truetype(FONT_HAND, 34)
     hx, hy = judge_at
-    d.text((hx - 235, hy - 178), "you!", font=fh, fill=(225, 85, 35))
+    d.text((hx - 255, max(hy - 178, 532)), "you!", font=fh, fill=(225, 85, 35))
     d.text((800, 610 + 330), "yours", font=ImageFont.truetype(FONT_HAND, 28), fill=(110, 70, 40))
     return img
 
 
-def main(out):
+def main(out, variant="v1"):
+    global LETTER
+    LETTER = {"v3": LETTER_V3, "v4": LETTER_V4}.get(variant, LETTER_V1)
     canvas = paper()
     cr = Crayon()
     judge_at = drawing(cr)
-    canvas = cr.apply(canvas)
+    drawn = cr.apply(canvas.copy())
+    if variant == "v4":
+        # the picture is the main event: enlarge the beach drawing, keep the corner sun
+        f, y0 = 1.13, 545
+        band = Image.fromarray(drawn[y0:1000].astype(np.uint8))
+        band = band.resize((int(W * f), int((1000 - y0) * f)), Image.LANCZOS)
+        cx0 = (band.width - W) // 2
+        band = np.asarray(band, np.float32)[:, cx0:cx0 + W]
+        canvas = drawn.copy()
+        canvas[y0:1000] = canvas[y0:1000] * 0 + paper()[y0:1000]
+        canvas[1000 - band.shape[0]:1000] = band
+        hx, hy = judge_at
+        judge_at = ((hx - 512) * f + 512, 1000 - (1000 - hy) * f)
+    else:
+        canvas = drawn
     img = text_layer(canvas, judge_at)
     img.save(out, optimize=True)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "out/card.png")
+    main(sys.argv[1] if len(sys.argv) > 1 else "out/card.png", sys.argv[2] if len(sys.argv) > 2 else "v1")
