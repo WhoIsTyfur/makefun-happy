@@ -38,6 +38,8 @@ DRESS = C.mat("dress", (0.85, 0.12, 0.1), 0.6, sss=0.05)
 SOCK = C.mat("sock", (0.98, 0.95, 0.9), 0.7)
 SHOE = C.mat("shoe", (0.25, 0.35, 0.75), 0.45)
 EYE = C.mat("eye", (0.08, 0.04, 0.03), 0.4)
+MOUTH = C.mat("mouth", (0.35, 0.06, 0.06), 0.5)
+TONGUE = C.mat("tongue", (1.0, 0.45, 0.45), 0.5)
 CROWN = C.mat("crown", (1.0, 0.68, 0.04), 0.6, sss=0.05)
 GEM = C.mat("gem", (0.95, 0.2, 0.3), 0.5)
 WOOD = C.mat("wood", (0.55, 0.32, 0.17), 0.45)
@@ -65,6 +67,11 @@ body.rotation_euler = (R(8), 0, R(15))
 for dx, dz, s in ((-0.06, 0.07, 0.07), (0.06, 0.07, 0.07)):
     C.ball("chest", (RX + dx, -0.37, 0.62 + dz), (s, 0.03, s), BLUSH)
 C.ball("chest", (RX, -0.37, 0.62), (0.06, 0.03, 0.06), BLUSH, rot=(0, R(45), 0))
+clasp = Vector((RX + 0.16, -0.62, 0.9))
+for sh, mid in (((RX - 0.42, 0.05, 0.78), (RX - 0.35, -0.5, 0.62)),
+                ((RX + 0.5, -0.2, 0.78), (RX + 0.42, -0.62, 0.66))):
+    C.tube("rarm", [sh, mid, tuple(clasp)], 0.08, MINT, smooth_path=True)
+C.ball("rhands", tuple(clasp), (0.16, 0.13, 0.13), CLAY)
 
 neck = C.pivot((RX, 0, 0.95))
 HZ = 1.47
@@ -72,7 +79,7 @@ hp = [C.rbox("head", (1.3, 0.95, 1.0), (RX, 0, HZ), CLAY, 0.34),
       C.rbox("screen", (1.0, 0.1, 0.68), (RX, -0.45, HZ), SCREEN, 0.18)]
 for ex in (-0.22, 0.22):
     hp.append(C.heart_solid("eye", (RX + ex, -0.515, HZ + 0.05), 0.0085, 0.012, HEARTGLOW))
-hp.append(C.tube("smile", C.arc(RX, HZ - 0.08, 0.12, math.pi + 0.35, 2 * math.pi - 0.35, -0.515), 0.026, GLOW))
+hp.append(C.flat_solid("grin", C.grin_pts(0.13, 0.1), (RX, -0.512, HZ - 0.07), 0.01, GLOW))
 for bx in (-0.36, 0.36):
     hp.append(C.ball("blush", (RX + bx, -0.5, HZ - 0.13), (0.08, 0.012, 0.05), BLUSH))
 for side in (-1, 1):
@@ -135,7 +142,8 @@ for side in (-1, 1):
 for ex in (-0.1, 0.1):
     kp.append(C.tube("keye", C.arc(KX + ex, HK + 0.01, 0.045, 0.2, math.pi - 0.2, KY - 0.283), 0.012, EYE))
     kp.append(C.ball("kcheek", (KX + ex * 1.6, KY - 0.255, HK - 0.07), (0.055, 0.02, 0.035), CHEEK))
-kp.append(C.tube("kmouth", C.arc(KX, HK - 0.06, 0.07, math.pi + 0.4, 2 * math.pi - 0.4, KY - 0.285), 0.013, EYE))
+kp.append(C.flat_solid("kmouth", C.grin_pts(0.065, 0.06), (KX, KY - 0.278, HK - 0.06), 0.012, MOUTH))
+kp.append(C.ball("tongue", (KX, KY - 0.283, HK - 0.1), (0.035, 0.008, 0.017), TONGUE))
 C.parent_all(kp, kid)
 kid.rotation_euler = (0, 0, R(-48))  # faces left, toward the robot, three quarters to us
 sh_l = C.world_point(kid, (KX - 0.17, KY, BASE + 0.92))
@@ -149,6 +157,7 @@ for name, sh, hand in (("arm_l", sh_l, crown_front_r), ("arm_r", sh_r, crown_sid
 C.light("key", "AREA", (-3.0, -3.2, 3.6), 1000, (1.0, 0.8, 0.6), 2.5)
 C.light("fill", "AREA", (3.5, -3.5, 1.8), 150, (0.85, 0.9, 1.0), 4.0)
 C.light("sun", "SPOT", (4.0, 2.5, 2.8), 14000, (1.0, 0.6, 0.28), size=0.25, target=(0, 0, 1.2), spot_deg=45)
+C.light("rimL", "AREA", (-2.5, 2.5, 3.0), 900, (1.0, 0.65, 0.35), 2.0, target=(-0.5, 0, 1.3))
 C.light("wallglow", "SPOT", (0.0, 1.5, 4.5), 2500, (1.0, 0.62, 0.32), target=(-0.3, 7, 1.8), spot_deg=60)
 C.world()
 

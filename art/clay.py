@@ -132,6 +132,33 @@ def heart_solid(name, loc, s, depth, m, rot=(math.pi / 2, 0, 0)):
     return ob
 
 
+def flat_solid(name, pts2d, loc, depth, m, rot=(math.pi / 2, 0, 0)):
+    """A filled closed outline (x, y pairs), extruded a little; by default it
+    stands up facing -Y like the hearts."""
+    cu = bpy.data.curves.new(name, "CURVE")
+    cu.dimensions = "2D"
+    cu.fill_mode = "BOTH"
+    cu.extrude = depth
+    sp = cu.splines.new("POLY")
+    sp.points.add(len(pts2d) - 1)
+    for i, (x, y) in enumerate(pts2d):
+        sp.points[i].co = (x, y, 0, 1)
+    sp.use_cyclic_u = True
+    ob = bpy.data.objects.new(name, cu)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.location = loc
+    ob.rotation_euler = rot
+    ob.data.materials.append(m)
+    return ob
+
+
+def grin_pts(w, h, n=32):
+    """Outline of an open grin: flat top, round bottom (a D on its back)."""
+    pts = [(-w + 2 * w * i / 8, 0.0) for i in range(8)]
+    pts += [(w * math.cos(math.pi * i / n), -h * math.sin(math.pi * i / n)) for i in range(n + 1)]
+    return pts
+
+
 def text(name, body, loc, size, m, font, rot=(math.pi / 2, 0, 0), extrude=0.0):
     cu = bpy.data.curves.new(name, "FONT")
     cu.body = body
