@@ -33,14 +33,33 @@ def check_png(data):
     assert seen_end, "no IEND"
 
 
+def check_jpeg(data):
+    """A JPEG must start with SOI and end with EOI, within the size limit."""
+    assert data[:2] == b"\xff\xd8" and data.rstrip(b"\x00")[-2:] == b"\xff\xd9", "bad JPEG"
+    assert len(data) <= 1048576, "over 1 MiB"
+
+
+def load():
+    """Read the committed picture (PNG preferred, JPEG accepted) and check it."""
+    for name, check in (("entry.png", check_png), ("entry.jpg", check_jpeg)):
+        path = os.path.join(HERE, "art", name)
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                data = f.read()
+            check(data)
+            return data
+    raise SystemExit("no art/entry.png or art/entry.jpg")
+
+
 def main():
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    with open(SRC, "rb") as f:
-        data = f.read()
-    check_png(data)
+    data = load()
     os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "entry.png"), "wb") as f:
+    # write to a temp name, then rename, so a reader never sees half a file
+    tmp = os.path.join(out_dir, ".entry.tmp")
+    with open(tmp, "wb") as f:
         f.write(data)
+    os.replace(tmp, os.path.join(out_dir, "entry.png"))
 
 
 if __name__ == "__main__":
