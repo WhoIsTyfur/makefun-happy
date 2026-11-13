@@ -159,6 +159,45 @@ def grin_pts(w, h, n=32):
     return pts
 
 
+def robot(loc, s, mats, head_rot=(0, 0, 0), body_rot=(0, 0, 0)):
+    """The little screen-faced robot, laughing, at loc (feet), scale s.
+    mats: dict with clay, mint, screen, glow, blush. Returns a dict of handy
+    world points (shoulders) so a scene can add arms reaching anywhere."""
+    x, y, z = loc
+    parts = []
+    for side in (-1, 1):
+        parts.append(rbox("leg", (0.24 * s, 0.26 * s, 0.3 * s), (x + side * 0.22 * s, y, z + 0.15 * s),
+                          mats["mint"], 0.08 * s))
+    body = rbox("body", (0.95 * s, 0.72 * s, 0.78 * s), (x, y, z + 0.68 * s), mats["clay"], 0.28 * s)
+    body.rotation_euler = body_rot
+    neck = pivot((x, y, z + 1.08 * s))
+    hz = z + 1.6 * s
+    hp = [rbox("head", (1.3 * s, 0.95 * s, 1.0 * s), (x, y, hz), mats["clay"], 0.34 * s),
+          rbox("screen", (1.0 * s, 0.1 * s, 0.68 * s), (x, y - 0.45 * s, hz), mats["screen"], 0.18 * s)]
+    sy = y - 0.512 * s
+    for ex in (-0.22, 0.22):
+        hp.append(tube("eye", arc(x + ex * s, hz + 0.02 * s, 0.11 * s, 0.15, math.pi - 0.15, sy), 0.03 * s,
+                       mats["glow"]))
+    hp.append(flat_solid("grin", [(px * s, py * s) for px, py in grin_pts(0.14, 0.12)], (x, sy, hz - 0.07 * s),
+                         0.01 * s, mats["glow"]))
+    for bx in (-0.36, 0.36):
+        hp.append(ball("blush", (x + bx * s, y - 0.5 * s, hz - 0.12 * s), (0.08 * s, 0.012 * s, 0.05 * s),
+                       mats["blush"]))
+    for side in (-1, 1):
+        hp.append(ball("ear", (x + side * 0.68 * s, y, hz), (0.07 * s, 0.17 * s, 0.17 * s), mats["mint"]))
+    parent_all(hp, neck)
+    neck.rotation_euler = head_rot
+    return {"l_shoulder": Vector((x - 0.45 * s, y - 0.05 * s, z + 0.95 * s)),
+            "r_shoulder": Vector((x + 0.45 * s, y - 0.05 * s, z + 0.95 * s)),
+            "neck": neck, "scale": s}
+
+
+def arm(start, end, s, m_arm, m_hand, bend=(0.0, -0.1, 0.0)):
+    mid = (Vector(start) + Vector(end)) / 2 + Vector(bend) * s
+    tube("arm", [tuple(start), tuple(mid), tuple(end)], 0.08 * s, m_arm, smooth_path=True)
+    ball("hand", tuple(end), (0.11 * s, 0.11 * s, 0.11 * s), m_hand)
+
+
 def text(name, body, loc, size, m, font, rot=(math.pi / 2, 0, 0), extrude=0.0):
     cu = bpy.data.curves.new(name, "FONT")
     cu.body = body

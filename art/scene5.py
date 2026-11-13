@@ -21,6 +21,8 @@ argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = argv[0] if argv else "//render5.png"
 RES = int(argv[1]) if len(argv) > 1 else 1024
 SAMPLES = int(argv[2]) if len(argv) > 2 else 256
+MOOD = argv[3] if len(argv) > 3 else "day"  # "glow": the sun is the room's lamp
+GL = MOOD == "glow"
 R = math.radians
 rng = random.Random(11)
 
@@ -32,8 +34,8 @@ MINT = C.mat("mint", (0.55, 0.82, 0.74), 0.55, sss=0.1)
 SCREEN = C.mat("screen", (0.02, 0.03, 0.05), 0.18, coat=0.6)
 GLOW = C.mat("glow", (0.5, 1.0, 0.85), 0.5, emit=(0.45, 1.0, 0.8), strength=6)
 BLUSH = C.mat("blush", (1.0, 0.45, 0.55), 0.5, emit=(1.0, 0.35, 0.45), strength=2.5)
-SUN = C.mat("sun", (1.0, 0.55, 0.03), 0.55, sss=0.15, emit=(1.0, 0.45, 0.02), strength=0.9)
-RAY = C.mat("ray", (1.0, 0.38, 0.02), 0.55, emit=(1.0, 0.32, 0.01), strength=1.2)
+SUN = C.mat("sun", (1.0, 0.55, 0.03), 0.55, sss=0.15, emit=(1.0, 0.4, 0.0), strength=1.8 if GL else 0.9)
+RAY = C.mat("ray", (1.0, 0.38, 0.02), 0.55, emit=(1.0, 0.3, 0.0), strength=2.6 if GL else 1.2)
 SUNFACE = C.mat("sunface", (0.45, 0.14, 0.03), 0.5)
 SUNMOUTH = C.mat("sunmouth", (0.55, 0.12, 0.06), 0.5)
 SUNTONGUE = C.mat("suntongue", (1.0, 0.4, 0.35), 0.5)
@@ -47,7 +49,7 @@ DARK = C.mat("dark", (0.05, 0.03, 0.02), 0.3)
 BRUSH = C.mat("brush", (0.95, 0.4, 0.5), 0.5)
 BRISTLE = C.mat("bristle", (0.98, 0.9, 0.7), 0.7)
 STOOL = C.mat("stool", (0.45, 0.62, 0.85), 0.5)
-TILE = C.mat("tile", (0.95, 0.66, 0.52), 0.6)
+TILE = C.mat("tile", (0.45, 0.5, 0.72) if GL else (0.95, 0.66, 0.52), 0.6)
 FLOOR = C.mat("floor", (0.93, 0.78, 0.66), 0.5)
 
 bub = bpy.data.materials.new("bubble")
@@ -188,9 +190,18 @@ for (x, y, z, r) in ((0.9, -0.6, 2.9, 0.16), (0.3, -0.9, 3.25, 0.11), (-1.9, -0.
     C.ball("bubble", (x, y, z), (r, r, r), bub)
 
 # ---------------------------------------------------------------- light, camera
-C.light("key", "AREA", (-3.2, -4.0, 4.2), 900, (1.0, 0.85, 0.7), 3.0, target=(0, 0, 1.4))
-C.light("fill", "AREA", (4.0, -4.0, 2.2), 250, (0.9, 0.92, 1.0), 4.0, target=(0.5, 0, 1.4))
-C.light("top", "AREA", (0, 0.5, 6.0), 350, (1.0, 0.9, 0.75), 4.0, target=(0, 0.5, 0))
-C.world((0.9, 0.7, 0.5), 0.3)
-C.camera((0.3, -7.0, 2.1), (0.25, 0, 1.8), (0.6, -0.4, 1.9), lens=42, fstop=1.6)
+if GL:
+    # dusk: a faint cool fill, everything else lit by the sun in the tub
+    C.light("fill", "AREA", (3.0, -5.0, 3.0), 120, (0.6, 0.7, 1.0), 5.0, target=(0.5, 0, 1.4))
+    C.light("glowspill", "POINT", (-0.6, -1.7, 2.1), 1400, (1.0, 0.55, 0.2), size=1.2)
+    C.world((0.25, 0.3, 0.5), 0.15)
+else:
+    C.light("key", "AREA", (-3.2, -4.0, 4.2), 900, (1.0, 0.85, 0.7), 3.0, target=(0, 0, 1.4))
+    C.light("fill", "AREA", (4.0, -4.0, 2.2), 250, (0.9, 0.92, 1.0), 4.0, target=(0.5, 0, 1.4))
+    C.light("top", "AREA", (0, 0.5, 6.0), 350, (1.0, 0.9, 0.75), 4.0, target=(0, 0.5, 0))
+    # late sun through a window on the left: a warm slanted patch on the wall
+    C.light("window", "SPOT", (-5.0, -2.0, 4.5), 9000, (1.0, 0.7, 0.4), size=0.05, target=(-0.5, 4.5, 2.4),
+            spot_deg=22)
+    C.world((0.9, 0.7, 0.5), 0.3)
+C.camera((0.3, -6.6, 2.05), (0.3, 0, 1.92), (0.6, -0.4, 1.9), lens=44, fstop=1.6)
 C.render(OUT, RES, SAMPLES)
