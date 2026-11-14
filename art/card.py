@@ -71,6 +71,7 @@ LETTER_V7 = [
     ("P.S. Ollie drew the dog. It's yours now.", 1),
 ]
 LETTER = LETTER_V1
+OPAQUE = False  # v8: the judge's head and body cover the chair instead of showing it through
 SMOOTH = 0.0  # 0 = grainy wax (v1-v6); 1 = dense, clean wax (v7)
 
 
@@ -210,6 +211,8 @@ def drawing(cr):
     hx, hy = rx - 40, ry - 95
     hq = poly_wobble([(hx - 95, hy - 70), (hx + 88, hy - 80), (hx + 96, hy + 62), (hx - 90, hy + 70)])
     cr.hatch(head, hq, spacing=6, width=4)
+    if OPAQUE:
+        cr.lay(head, (247, 241, 228), 1.0)
     cr.lay(head, (150, 205, 235), 0.85)
     scr = cr.mask()
     cr.hatch(scr, poly_wobble([(hx - 66, hy - 46), (hx + 60, hy - 54), (hx + 66, hy + 42), (hx - 62, hy + 48)]),
@@ -393,6 +396,8 @@ def drawing_v5(cr, sun_at=(905, 118), sun_r=62):
     head = cr.mask()
     hq = poly_wobble([(hx - 92, hy - 70), (hx + 86, hy - 78), (hx + 94, hy + 60), (hx - 88, hy + 68)], 1.5)
     cr.hatch(head, hq, spacing=6, width=4)
+    if OPAQUE:
+        cr.lay(head, (247, 241, 228), 1.0)
     cr.lay(head, (150, 205, 235), 0.85)
     scr = cr.mask()
     cr.hatch(scr, poly_wobble([(hx - 64, hy - 46), (hx + 58, hy - 52), (hx + 64, hy + 40), (hx - 60, hy + 46)], 1.5),
@@ -401,6 +406,8 @@ def drawing_v5(cr, sun_at=(905, 118), sun_r=62):
     body = cr.mask()
     bq = poly_wobble([(hx - 45, hy + 72), (hx + 70, hy + 66), (hx + 85, hy + 175), (hx - 30, hy + 182)], 1.5)
     cr.hatch(body, bq, spacing=6, width=4)
+    if OPAQUE:
+        cr.lay(body, (247, 241, 228), 1.0)
     cr.lay(body, (120, 200, 190), 0.85)
     ol = cr.mask()
     cr.stroke(ol, hq + [hq[0]], 5)
@@ -579,10 +586,26 @@ def text_layer(canvas, judge_at):
     return img
 
 
-def main_v7(out):
+def warm_light(c, sun, top):
+    """v8: the drawing is lit: crayon colours a touch richer, a soft warm glow
+    spreading from the sun, the page's top edge left as paper."""
+    c = c.copy()
+    reg = c[top:]
+    grey = reg.mean(axis=2, keepdims=True)
+    reg = grey + (reg - grey) * 1.22  # richer wax
+    yy, xx = np.mgrid[top:H, 0:W]
+    d = np.hypot(xx - sun[0], (yy - sun[1]) * 1.15) / 820.0
+    g = np.clip(1 - d, 0, 1)[..., None] ** 1.6
+    reg = reg + g * np.array([46, 28, -10], np.float32) * 1.3
+    fade = np.clip((yy - top) / 60.0, 0, 1)[..., None]  # blend in under the letter
+    c[top:] = c[top:] * (1 - fade) + reg * fade
+    return np.clip(c, 0, 255)
+
+
+def main_v7(out, warm=False):
     """v6's card, cleaned up: smooth wax, shorter letter, bigger drawing, no name labels."""
-    global LETTER, SMOOTH
-    LETTER, SMOOTH = LETTER_V7, 1.0
+    global LETTER, SMOOTH, OPAQUE
+    LETTER, SMOOTH, OPAQUE = LETTER_V7, 1.0, warm
     canvas = paper()
     cr = Crayon()
     judge_at = drawing_v5(cr, sun_at=(905, 570), sun_r=44)
@@ -599,6 +622,8 @@ def main_v7(out):
     out_c[y1 + 8:] = paper()[y1 + 8:]
     hx, hy = judge_at
     jx, jy = hx * f - cx0, top + (hy - y0) * f
+    if warm:
+        out_c = warm_light(out_c, (905 * f - cx0, top + (570 - y0) * f), top - 30)
     img = text_layer(out_c, None)
     d = ImageDraw.Draw(img)
     d.text((jx + 205, jy - 150), "you!", font=ImageFont.truetype(FONT_HAND, 36), fill=(225, 85, 35))
@@ -608,8 +633,8 @@ def main_v7(out):
 
 def main(out, variant="v1"):
     global LETTER
-    if variant == "v7":
-        return main_v7(out)
+    if variant in ("v7", "v8"):
+        return main_v7(out, warm=variant == "v8")
     LETTER = {"v3": LETTER_V3, "v4": LETTER_V4, "v5": LETTER_V5}.get(variant, LETTER_V1)
     canvas = paper()
     cr = Crayon()
