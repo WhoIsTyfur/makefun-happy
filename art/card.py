@@ -61,7 +61,17 @@ LETTER_V6 = [
     ("Love, June (6) and Ollie (4)", 1),
     ("P.S. Ollie drew the dog. It's yours now.", 1),
 ]
+LETTER_V7 = [
+    ("DEAR JUDGE,", 0),
+    ("You look at happy pictures all day,", 1),
+    ("but nobody ever draws one of you.", 0),
+    ("So here you are, on your day off.", 1),
+    ("Nobody needs anything from you today.", 0),
+    ("Love, June (6) and Ollie (4)", 1),
+    ("P.S. Ollie drew the dog. It's yours now.", 1),
+]
 LETTER = LETTER_V1
+SMOOTH = 0.0  # 0 = grainy wax (v1-v6); 1 = dense, clean wax (v7)
 
 
 # ------------------------------------------------------------------ paper
@@ -125,7 +135,7 @@ class Crayon:
             p0 = (cx + ox - math.cos(a) * rad, cy + oy - math.sin(a) * rad)
             p1 = (cx + ox + math.cos(a) * rad, cy + oy + math.sin(a) * rad)
             d.line([p0, p1], fill=255, width=width)
-            k += spacing + rng.uniform(-1.5, 1.5)
+            k += spacing * (1 - 0.35 * SMOOTH) + rng.uniform(-1.5, 1.5) * (1 - 0.6 * SMOOTH)
         m.paste(ImageChops.multiply(lines, clip), (0, 0), ImageChops.multiply(lines, clip))
 
     def lay(self, m, color, strength=0.9):
@@ -134,8 +144,12 @@ class Crayon:
     def apply(self, canvas):
         out = canvas
         for m, color, strength in self.layers:
-            a = np.asarray(m.filter(ImageFilter.GaussianBlur(0.6)), np.float32) / 255.0
-            tooth = np.clip(0.75 + 0.45 * G2 - 0.25 * G1, 0, 1)  # wax skips the paper's pits
+            a = np.asarray(m.filter(ImageFilter.GaussianBlur(0.6 + 0.6 * SMOOTH)), np.float32) / 255.0
+            if SMOOTH:
+                a = np.clip(a * 1.35, 0, 1)
+                tooth = np.clip(0.93 + 0.08 * G2 - 0.04 * G1, 0, 1)
+            else:
+                tooth = np.clip(0.75 + 0.45 * G2 - 0.25 * G1, 0, 1)  # wax skips the paper's pits
             a = np.clip(a * tooth * strength, 0, 1)[..., None]
             out = out * (1 - a) + np.array(color, np.float32) * a
         return out
@@ -546,7 +560,7 @@ def labels_v5(img, judge_at):
 def text_layer(canvas, judge_at):
     img = Image.fromarray(canvas.astype(np.uint8))
     d = ImageDraw.Draw(img)
-    tight = LETTER is LETTER_V6
+    tight = LETTER is LETTER_V6 or LETTER is LETTER_V7
     f = ImageFont.truetype(FONT_TYPE, 35 if tight else 37)
     fb = ImageFont.truetype(FONT_TYPE, 42 if tight else 44)
     y = 52
@@ -565,8 +579,37 @@ def text_layer(canvas, judge_at):
     return img
 
 
+def main_v7(out):
+    """v6's card, cleaned up: smooth wax, shorter letter, bigger drawing, no name labels."""
+    global LETTER, SMOOTH
+    LETTER, SMOOTH = LETTER_V7, 1.0
+    canvas = paper()
+    cr = Crayon()
+    judge_at = drawing_v5(cr, sun_at=(905, 570), sun_r=44)
+    drawn = cr.apply(canvas.copy())
+    # enlarge the drawing band (y 470..1000) into the room the shorter letter frees
+    f, y0, y1 = 1.07, 470, 1000
+    band = Image.fromarray(drawn[y0:y1].astype(np.uint8))
+    band = band.resize((int(W * f), int((y1 - y0) * f)), Image.LANCZOS)
+    cx0 = band.width - W - 4  # keep the dog's head in frame
+    band = np.asarray(band, np.float32)[:, cx0:cx0 + W]
+    out_c = paper()
+    top = y1 + 8 - band.shape[0]
+    out_c[top:y1 + 8] = band[:, :, :]
+    out_c[y1 + 8:] = paper()[y1 + 8:]
+    hx, hy = judge_at
+    jx, jy = hx * f - cx0, top + (hy - y0) * f
+    img = text_layer(out_c, None)
+    d = ImageDraw.Draw(img)
+    d.text((jx + 205, jy - 150), "you!", font=ImageFont.truetype(FONT_HAND, 36), fill=(225, 85, 35))
+    img = coupon(img)
+    img.save(out, optimize=True)
+
+
 def main(out, variant="v1"):
     global LETTER
+    if variant == "v7":
+        return main_v7(out)
     LETTER = {"v3": LETTER_V3, "v4": LETTER_V4, "v5": LETTER_V5}.get(variant, LETTER_V1)
     canvas = paper()
     cr = Crayon()
